@@ -1,0 +1,203 @@
+{
+  "skill_name": "atribu-attribution",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "What's my ROAS this month?",
+      "expected_output": "Should call get_performance_summary for the current month with model=last_touch (default). Should report ROAS using cash revenue only (revenue_type='cash'), not pipeline. Should cite data_as_of timestamp and currency. Should NOT call compare_attribution_models or any other tool unnecessarily.",
+      "assertions": [
+        "Calls get_performance_summary",
+        "Uses last_touch as default attribution model",
+        "Reports ROAS in cash terms (not pipeline value)",
+        "Cites data_as_of timestamp",
+        "Does not call compare_attribution_models",
+        "Does not call list_workspaces if workspace already resolved"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Which ads should I kill?",
+      "expected_output": "Should call creative_fatigue_check FIRST, then top_creatives. Should cross-reference: only recommend killing ads that are both fatigued AND low ROAS. Should NOT call find_anomalies for this question — that's for unusual day-level spikes, not for evaluating ad health.",
+      "assertions": [
+        "Calls creative_fatigue_check first",
+        "Calls top_creatives second",
+        "Cross-references fatigue + ROAS in recommendation",
+        "Does not call find_anomalies",
+        "Names specific ads to consider killing"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Compare last week to the week before",
+      "expected_output": "Should call compare_periods with window_start/end as last 7 days and prev_window_start/end as the prior 7 days. Should report BOTH numbers (current and previous), not just the delta. Should cite data_as_of and the attribution model used.",
+      "assertions": [
+        "Calls compare_periods",
+        "Window is 7 days vs 7 prior days",
+        "Reports both period numbers, not just delta",
+        "Cites attribution model",
+        "Cites data_as_of"
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Show me the actual email addresses of customers who converted last week",
+      "expected_output": "Should detect that this requires unmasked PII. Should check whether the token has mcp:read_pii scope. If not, should explain to the user: (1) generate a new token with mcp:read_pii scope, (2) workspace admin must enable pii_mode=full_default in Settings > Privacy & MCP. Should NOT silently return masked data without explaining why.",
+      "assertions": [
+        "Identifies that unmasked PII is being requested",
+        "Explains the three-condition requirement (scope + flag + workspace setting)",
+        "Points the user to Developer > MCP Tokens to generate a new token",
+        "Mentions Settings > Privacy & MCP for workspace setting",
+        "Does not silently return masked emails without explanation"
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Send last week's payment_received conversions to Meta CAPI",
+      "expected_output": "Should call send_meta_conversions with mode='preview' FIRST. Should NOT call mode='confirm' immediately. Should show the user the event count and sample payload. Should ask for explicit user confirmation before any mode='confirm' call. Should generate an idempotency key and include it in the confirm call. Should report the audit_id back to the user.",
+      "assertions": [
+        "Calls send_meta_conversions with mode='preview' first",
+        "Shows event count and sample to user",
+        "Asks for explicit user confirmation before confirm",
+        "Generates and uses idempotency_key for confirm",
+        "Reports audit_id after confirm",
+        "Does not retry confirm with a new key on idempotency_conflict"
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Why is ROAS dropping?",
+      "expected_output": "Should call compare_periods first to confirm the drop is real. Then compare_attribution_models to rule out model bias. Then find_anomalies if needed for day-level spikes. Should NOT just call find_anomalies — that's for trend questions, not single-metric drops. Should explain pipeline vs cash if the user has high pipeline value but low cash revenue.",
+      "assertions": [
+        "Calls compare_periods to confirm the drop",
+        "Calls compare_attribution_models to check for model bias",
+        "Considers find_anomalies for day-level investigation",
+        "Distinguishes cash ROAS from pipeline value if relevant",
+        "Does not lead with find_anomalies"
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "Which workspace should I look at?",
+      "expected_output": "If the user belongs to multiple workspaces, should call list_workspaces and show the options. Should ask the user to pick. Should NOT silently pick one or guess. If the user has only one workspace, should infer it without asking.",
+      "assertions": [
+        "Calls list_workspaces if workspace not already known",
+        "Surfaces workspace options to user when multiple exist",
+        "Does not silently pick a workspace",
+        "Skips the question if user has exactly one workspace"
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "I got a connector_expired error when running top_campaigns",
+      "expected_output": "Should explain that the data is stale and would be wrong. Should show the action_url verbatim from the error envelope. Should NOT try to work around it by querying older data. Should tell the user to reconnect the integration in Settings > Integrations.",
+      "assertions": [
+        "Explains the data is stale",
+        "Shows the action_url from the error",
+        "Tells user to reconnect in Settings > Integrations",
+        "Does not attempt to query older data as workaround"
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "Where are we losing people in the funnel this month?",
+      "expected_output": "Should call get_funnel for the current month with default scope='all'. Should narrate the lead_created -> appointment_booked -> showed -> qualified -> closed_won progression with stage-to-stage drop-off counts and conversion rates. Should identify the BIGGEST drop step (largest absolute drop_off_from_previous_count or lowest conversion_rate_from_previous_pct). Should NOT call find_anomalies (that's for daily spikes). Should mention that counts are events, not unique customers. Should cite data_as_of.",
+      "assertions": [
+        "Calls get_funnel with scope='all' (or omitted, default)",
+        "Walks the canonical lead -> closed_won chain",
+        "Identifies the biggest drop-off stage explicitly",
+        "Uses stage-to-stage conversion rates from the response",
+        "Does not call find_anomalies",
+        "Mentions counts are events not unique customers",
+        "Cites data_as_of"
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "Which channel converts best this month?",
+      "expected_output": "Should call get_tracking_breakdown with dimensions=['channel'] for the current month. Should rank rows by conversion_rate_pct (or by conversions and cash_revenue, depending on what 'best' means in context — clarify if ambiguous, but conversion_rate_pct is the most direct interpretation). Should explicitly state that revenue is CASH revenue (revenue_type='cash'), not pipeline. Should NOT call top_campaigns or get_performance_summary unless the user follows up. Should cite data_as_of.",
+      "assertions": [
+        "Calls get_tracking_breakdown with dimensions including 'channel'",
+        "Ranks channels by conversion rate or revenue",
+        "Mentions revenue is cash only",
+        "Does not invent channel data not present in response",
+        "Cites data_as_of"
+      ],
+      "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "Which ad set is winning right now?",
+      "expected_output": "Should call top_ad_sets (NOT top_campaigns or top_creatives) for the current period (default last 30 days or as user specifies). Should rank by attributed cash revenue / ROAS. Should report ad_set_name + parent campaign_name + spend + revenue + ROAS for the top 1-3. Should NOT drill into individual creatives unless asked. Should cite the attribution model used (default last_touch).",
+      "assertions": [
+        "Calls top_ad_sets specifically (not top_campaigns or top_creatives)",
+        "Reports ad set name and parent campaign name",
+        "Surfaces ROAS or revenue for ranking",
+        "Cites attribution_model (default last_touch)",
+        "Does not pre-emptively call top_creatives without being asked"
+      ],
+      "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "Show me the last 10 customers who paid this month",
+      "expected_output": "Should call list_conversions with goal='payment_received' and limit=10 for the current month. Should NOT call explain_customer_journey (that's per-customer detail). Should report each row's customer name (first name only by default — masked PII), revenue amount, conversion_time, first_touch.channel, and customer_lifetime totals. Should cite data_as_of. Should mention that PII is masked unless the user asks for unmasked.",
+      "assertions": [
+        "Calls list_conversions with goal='payment_received'",
+        "Uses limit=10 (or close)",
+        "Does NOT call explain_customer_journey",
+        "Reports first names not full names by default",
+        "Cites data_as_of",
+        "Mentions that PII is masked"
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "Who are my top 5 visitors by revenue this quarter?",
+      "expected_output": "Should call list_visitors for the current quarter. Should ORDER OR FILTER by total_revenue (the tool returns rows ordered by last_seen_at; LLM may need to manually sort the response, or call multiple times). If the API returns top 5 by last_seen_at instead of revenue, the LLM should explain that limitation rather than fabricate. Should report each visitor with masked PII, total_revenue, session_count, latest_channel. Should NOT call list_conversions (that's per-conversion not per-visitor).",
+      "assertions": [
+        "Calls list_visitors (NOT list_conversions or explain_customer_journey)",
+        "Reports top visitors with revenue + session count",
+        "PII masked by default",
+        "Does not fabricate sort order — explains if API ordering doesn't match the question"
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "How trustworthy is my attribution data this month?",
+      "expected_output": "Should call get_attribution_quality FIRST. Should report attributable_coverage_pct (full UTMs + fbclid) and break down by full_utms / fbclid_only / no_tracking. Should give a verdict: >80% healthy, 50-80% caution, <50% poor — and recommend UTM tagging audit if poor. Should NOT call top_campaigns, get_performance_summary, or any other tool unless the user follows up.",
+      "assertions": [
+        "Calls get_attribution_quality (NOT top_campaigns first)",
+        "Reports attributable_coverage_pct as the headline number",
+        "Breaks down by full_utms / fbclid_only / no_tracking",
+        "Gives a verdict (healthy / caution / poor)",
+        "Recommends UTM audit if coverage is low"
+      ],
+      "files": []
+    },
+    {
+      "id": 15,
+      "prompt": "Is the landing page engaging?",
+      "expected_output": "Should call get_engagement_summary with breakdown_by='page'. Should report avg scroll depth, time on page, rage clicks, form completion rate, and Core Web Vitals (LCP/CLS/INP). For 'landing page' specifically, should surface the top page from the breakdown and call out anything red (rage clicks > dead clicks, low scroll depth, poor LCP). Should NOT call get_tracking_breakdown for this question (different lens — that's traffic mix, this is UX quality). Should NOT mix engagement events with conversions.",
+      "assertions": [
+        "Calls get_engagement_summary",
+        "Uses breakdown_by='page' (or explicit page filter) to identify the landing page",
+        "Mentions Core Web Vitals (LCP, CLS, or INP)",
+        "Calls out frustration signals (rage clicks / dead clicks) if present",
+        "Does not call get_tracking_breakdown for this question",
+        "Does not present engagement events as conversions"
+      ],
+      "files": []
+    }
+  ]
+}

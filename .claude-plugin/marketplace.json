@@ -1,0 +1,36 @@
+{
+  "name": "atribu-attribution",
+  "owner": {
+    "name": "Atribu",
+    "email": "team@atribu.app",
+    "url": "https://www.atribu.app"
+  },
+  "metadata": {
+    "description": "The Atribu attribution skill — query identity-stitched marketing attribution data via the Atribu MCP server (mcp.atribu.app).",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "atribu-attribution",
+      "source": "./plugins/atribu-attribution",
+      "description": "Query Atribu attribution data via MCP — campaigns, creatives, customer journeys, funnel, traffic breakdowns, anomalies, and Meta CAPI write-back. Defaults to cash ROAS and masks PII.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Atribu",
+        "email": "team@atribu.app"
+      },
+      "homepage": "https://docs.atribu.app/mcp/skill",
+      "repository": "https://github.com/AtribuCore/atribu-attribution-skill",
+      "license": "MIT",
+      "keywords": [
+        "atribu",
+        "attribution",
+        "marketing",
+        "analytics",
+        "mcp",
+        "roas",
+        "meta-capi"
+      ]
+    }
+  ]
+}

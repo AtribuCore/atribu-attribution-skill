@@ -1,0 +1,18 @@
+{
+  "name": "atribu-attribution",
+  "version": "1.0.0",
+  "description": "Query Atribu attribution data via MCP — campaigns, creatives, customer journeys, funnel, traffic breakdowns, anomalies, and Meta CAPI write-back.",
+  "author": {
+    "name": "Atribu",
+    "email": "team@atribu.app",
+    "url": "https://www.atribu.app"
+  },
+  "homepage": "https://docs.atribu.app/mcp/skill",
+  "license": "MIT",
+  "keywords": [
+    "atribu",
+    "attribution",
+    "marketing",
+    "mcp"
+  ]
+}
