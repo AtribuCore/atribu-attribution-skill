@@ -20,7 +20,7 @@ Then restart your Claude Code session.
 
 ## Prerequisites
 
-You need an MCP token from the Atribu app. Sign in to [atribu.app](https://www.atribu.app), open **Developer → MCP Tokens**, create a token, and configure your client. Full instructions: <https://docs.atribu.app/mcp/quickstart>.
+You need an MCP token from the Atribu app. Sign in to [atribu.app](https://www.atribu.app), open **Developer → MCP Tokens**, create a token, and configure your client. Full instructions: <https://www.atribu.app/docs/mcp/quickstart>.
 
 ## What's in the box
 
