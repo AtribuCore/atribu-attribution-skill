@@ -48,6 +48,20 @@ Never call `explain_customer_journey` without a `customer_profile_id` you got fr
 1. `whatsapp_attribution_summary` for the relevant window
 2. Compare to `top_campaigns` to see what % of total revenue WhatsApp drove
 
+## "What's working across all my clients?" / "Best ads in the agency?" / "What creative should I replicate?"
+
+1. `top_workspace_performers` — one call, all profiles in the workspace, ranked by cohort-normalized `composite_score` (an ad is scored against *comparable* creative, so a $500/mo clinic and a $30k/mo clinic are compared fairly).
+2. Read the top rows: lead with `composite_score` + `maturity_stage`, then the top 1-2 `reason_codes` ("strong hook — top of its cohort", "cheap conversations"). Cite `attributed_revenue`/`roas` as a *separate* line when `truth_grade='attributed'` — it's the real-cash signal, not the same thing as the score. `top_performer_likelihood` is a probability; narrate it as one, never as ROAS.
+3. To replicate: the winner's `creative.*` block (hook_type, format, cta_type, primary_angle, offers, pain_points_addressed) is the DNA. Tell the user "the pattern is X — UGC video, question hook, send-DM CTA, [pain point] angle".
+4. For "which is my single best ad per client?", call again with `profile_ids: [...]` or just group the rows by `profile_id` client-side.
+
+Don't reach for `top_creatives` here — that's single-profile, ranked by raw ROAS, with no cohort normalization (so it'll over-rank the big-budget accounts). `top_workspace_performers` is the agency-wide, apples-to-apples view.
+
+Caveats:
+- Trust the score by `maturity_stage`: `cold` ads have too little data — say so. `mature`/`calibrated` are the ones to act on.
+- `reason_codes` carry a `sample_confidence` band. A `low`-confidence "strong" signal on a 2-day-old ad is a guess, not a verdict.
+- If `top_workspace_performers` returns nothing, the workspace's creative scores haven't been built yet (the daily score-rebuild runs ~12:00 UTC; a fresh Meta connection takes a sync cycle first). Fall back to per-profile `top_creatives`.
+
 ## "Send last week's purchases to Meta"
 
 See the dedicated write-back protocol section in SKILL.md. Always: preview → user-confirm → confirm with idempotency_key.

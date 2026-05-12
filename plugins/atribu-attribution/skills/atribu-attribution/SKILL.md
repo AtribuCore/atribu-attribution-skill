@@ -1,7 +1,7 @@
 ---
 name: atribu-attribution
-description: Query Atribu attribution data via the Atribu MCP server (mcp.atribu.app) — campaigns, creatives, customer journeys, creative fatigue, anomaly detection, and Meta CAPI write-back. Defaults to cash ROAS and masks PII. Use whenever the user asks about ad/campaign/creative performance, ROAS, CAC, customer journeys, "what's working", budget reallocation, cross-channel attribution, or sending conversions back to Meta.
-when_to_use: User mentions "ROAS", "ad performance", "which ads to kill", "creative fatigue", "customer journey", "compare periods", "anomalies", "send to Meta CAPI", "attribution", or asks any question about marketing campaign performance backed by Atribu.
+description: Query Atribu attribution data via the Atribu MCP server (mcp.atribu.app) — campaigns, creatives, workspace-level Top Performers (cohort-normalized creative scoring across all client profiles), customer journeys, creative fatigue, anomaly detection, and Meta CAPI write-back. Defaults to cash ROAS and masks PII. Use whenever the user asks about ad/campaign/creative performance, ROAS, CAC, customer journeys, "what's working", "best ads across clients", budget reallocation, cross-channel attribution, or sending conversions back to Meta.
+when_to_use: User mentions "ROAS", "ad performance", "which ads to kill", "best performers", "what's working across clients", "top creative", "creative patterns", "creative fatigue", "customer journey", "compare periods", "anomalies", "send to Meta CAPI", "attribution", or asks any question about marketing campaign performance backed by Atribu.
 ---
 
 # Atribu Attribution
@@ -85,13 +85,57 @@ provided. Do not recompute from raw numbers.
 
 ## Scope: pass workspace_id and profile_id
 
-Every data tool accepts `workspace_id` and `profile_id` parameters. **Pass
-them explicitly** once you know them (from `list_workspaces` /
-`list_profiles`). The server only infers defaults when the user has exactly
-one workspace and exactly one profile — pretty rare.
+Every per-profile data tool accepts `workspace_id` and `profile_id`
+parameters. **Pass them explicitly** once you know them (from
+`list_workspaces` / `list_profiles`). The server only infers defaults when
+the user has exactly one workspace and exactly one profile — pretty rare.
+
+`top_workspace_performers` is **workspace-scoped** — it spans all client
+profiles in the workspace, so it takes `workspace_id` only (no
+`profile_id`). It self-scopes guests to the profiles they can see.
 
 Concurrent IDE sessions using the same token are safe: the token carries NO
 persisted active scope. Each tool call is self-scoping.
+
+## Top Performers (workspace-level creative scoring)
+
+`top_workspace_performers` returns the best-performing ads across **all**
+client profiles in a workspace, scored against *comparable* creative (a
+"cohort" = channel × format × objective × audience warmth × geo × placement).
+The score is cohort-normalized, empirical-Bayes-smoothed (small-sample ads
+shrink toward the cohort mean — they land mid-pack, the honest "we don't
+know yet"), and maturity-staged. Use it for "what's working across the
+agency", spotting creative patterns to replicate, and ranking ads in a way
+that's fair to small-budget accounts.
+
+Each ad carries **three distinct measures — never merge them**:
+
+- `composite_score` (0–100) — a *transparent rule-based blend* of the ad's
+  within-cohort percentiles across funnel layers (delivery, attention,
+  retention, click intent, post-click/messaging, attributed revenue). This
+  is the headline rank.
+- `top_performer_likelihood` (0–1) — a *probability*. In Phase 1 it's a
+  monotone function of `composite_score`; a later ML layer overwrites it
+  with a calibrated model probability. Narrate it as "likelihood", never as
+  "ROAS" or "lift".
+- `attributed_revenue` / `roas` — *real cash attribution* (present and
+  driving the score when `truth_grade='attributed'`). Experimental lift
+  (`truth_grade='lift'`) is the gold standard, set by the experiments layer.
+
+`maturity_stage` tells you how much to trust the score: `cold` (just
+launched — too little data), `early` (warming up), `mature` (proven),
+`calibrated` (lift-tested). `reason_codes` explain *why* an ad ranks — which
+funnel layer is strong or weak, each with a `sample_confidence` band; lead
+with these when narrating ("strong hook — top of its cohort; sparse
+post-click data — only N conversations so far").
+
+Narration: lead with `composite_score` + maturity + the top reason code.
+Mention `attributed_revenue`/`roas` separately ("and it has real cash
+attribution: $X, Y.Yx ROAS"). Don't say "this ad has a 73% chance of being
+a top performer" unless `top_performer_likelihood` literally says 0.73 —
+and even then, frame it as a model estimate, not a guarantee. The
+`creative.*` block (hook type, format, CTA, angle, offers) is the DNA to
+copy when the user asks "make me more like this".
 
 ## Always call `whoami` first per session
 
@@ -148,6 +192,15 @@ forecast, not as revenue. Cite leads to show funnel volume.
 - **"Which ad set is winning?"** → `top_ad_sets`. Use this between
   `top_campaigns` (broader) and `top_creatives` (narrower) to find the
   audience/placement layer that's delivering before drilling into ads.
+- **"What's working across all my clients?" / "Best ads in the agency?" /
+  "Which creative should I replicate?" / "Find creative patterns"** →
+  `top_workspace_performers`. Workspace-scoped (one call, all profiles);
+  ranked by cohort-normalized `composite_score`. Lead with the score +
+  `maturity_stage` + the top `reason_codes`; cite `attributed_revenue`/
+  `roas` as a *separate* truth signal, and `top_performer_likelihood` as a
+  *probability* — never blend the three. For "which is per-profile best?",
+  filter `profile_ids`. Distinct from `top_creatives` (single profile,
+  ranked by raw ROAS, no cohort normalization).
 - **"Show me the last N conversions / who paid this month?"** →
   `list_conversions` with `goal='payment_received'` (or another event_type).
   Returns paginated rows with masked PII by default. Distinct from
