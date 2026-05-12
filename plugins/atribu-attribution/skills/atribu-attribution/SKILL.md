@@ -114,10 +114,12 @@ Each ad carries **three distinct measures — never merge them**:
   within-cohort percentiles across funnel layers (delivery, attention,
   retention, click intent, post-click/messaging, attributed revenue). This
   is the headline rank.
-- `top_performer_likelihood` (0–1) — a *probability*. In Phase 1 it's a
-  monotone function of `composite_score`; a later ML layer overwrites it
-  with a calibrated model probability. Narrate it as "likelihood", never as
-  "ROAS" or "lift".
+- `top_performer_likelihood` (0–1) — a *probability*: a **likelihood, not a
+  guarantee**. When `score_source='model'` it's the calibrated output of a
+  LambdaMART creative ranker (`model_version` says which model — also surfaced
+  at the top level of the response); otherwise (`score_source='rules'`) it's a
+  monotone function of `composite_score`. Narrate it as "likelihood", never as
+  "ROAS" or "lift", and say "the model estimates…" when `score_source='model'`.
 - `attributed_revenue` / `roas` — *real cash attribution* (present and
   driving the score when `truth_grade='attributed'`). Experimental lift
   (`truth_grade='lift'`) is the gold standard, set by the experiments layer.
