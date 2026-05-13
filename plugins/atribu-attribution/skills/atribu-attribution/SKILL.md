@@ -120,9 +120,20 @@ Each ad carries **three distinct measures — never merge them**:
   at the top level of the response); otherwise (`score_source='rules'`) it's a
   monotone function of `composite_score`. Narrate it as "likelihood", never as
   "ROAS" or "lift", and say "the model estimates…" when `score_source='model'`.
-- `attributed_revenue` / `roas` — *real cash attribution* (present and
-  driving the score when `truth_grade='attributed'`). Experimental lift
-  (`truth_grade='lift'`) is the gold standard, set by the experiments layer.
+- `attributed_revenue` / `roas` (and `attributed_outcomes_total` /
+  `attributed_pipeline_outcomes` / `attributed_pipeline_value`) — *real
+  Atribu-attributed outcomes*. `truth_grade='attributed'` means Atribu attributed
+  ≥1 outcome of **any** kind (cash *or* pipeline — leads/appointments/closed-won).
+  `meta_reported_conversions` is a *separate, lower-confidence* number — Meta's
+  *own* last-click count for the ad, **not** Atribu's chain; never call it
+  "attributed". Experimental lift (`truth_grade='lift'`) is the gold standard,
+  set by the experiments layer.
+
+`primary_outcome_kind` ∈ {`cash`,`pipeline`,`messaging`,`meta`,`none`} tells you
+which outcome to *headline* per ad: `cash` → revenue/ROAS; `pipeline` → "N
+attributed leads · $V pipeline value"; `messaging` → "N conversations started";
+`meta` → "Meta reports N conversions" (say it's *Meta's* attribution, not
+Atribu's); `none` → no attributed outcome yet — lead with `composite_score`.
 
 `maturity_stage` tells you how much to trust the score: `cold` (just
 launched — too little data), `early` (warming up), `mature` (proven),
@@ -131,9 +142,11 @@ funnel layer is strong or weak, each with a `sample_confidence` band; lead
 with these when narrating ("strong hook — top of its cohort; sparse
 post-click data — only N conversations so far").
 
-Narration: lead with `composite_score` + maturity + the top reason code.
-Mention `attributed_revenue`/`roas` separately ("and it has real cash
-attribution: $X, Y.Yx ROAS"). Don't say "this ad has a 73% chance of being
+Narration: lead with `composite_score` + maturity + the top reason code, then
+the headline outcome per `primary_outcome_kind` ("and Atribu attributed 6 leads
+worth $4.2k pipeline" / "Meta reports 18 conversions — Meta's own attribution").
+Don't headline "$0 / 0x ROAS" for a lead-gen or Messages ad — use
+`primary_outcome_kind`. Don't say "this ad has a 73% chance of being
 a top performer" unless `top_performer_likelihood` literally says 0.73 —
 and even then, frame it as a model estimate, not a guarantee. The
 `creative.*` block (hook type, format, CTA, angle, offers) is the DNA to
