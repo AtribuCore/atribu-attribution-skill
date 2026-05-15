@@ -4,9 +4,22 @@ Detailed guidance on which tool to reach for given common user questions. SKILL.
 
 ## "Which ads should I kill?"
 
-1. `creative_fatigue_check` — gets fatigue signals (CTR drop, CPM rise) for the last 14 days vs prior 14 days
-2. `top_creatives` ordered by ROAS — see which low-ROAS ads also show fatigue
-3. Cross-reference: kill ads that are both fatigued AND low ROAS. Just-fatigued or just-low-ROAS ads need investigation.
+1. `top_workspace_fatigue_risk` (Phase 4) — model-calibrated 30-day pause probability × spend (the budget-at-risk metric). Ads in fatigue tier `high`/`critical` are predicted to pause; sort by `risk_rank_score` descending.
+2. `top_creatives` ordered by ROAS — see which at-risk ads also have weak attribution
+3. Cross-reference: kill ads that are both at-risk AND low ROAS. Just-at-risk or just-low-ROAS ads need investigation.
+
+`creative_fatigue_check` is the legacy heuristic 2-window CTR/CPM delta — useful as a flag when the Phase-4 Cox model is gated off (`ML_FORECAST_AND_FATIGUE_ENABLED=false`) or for a workspace whose ads are too young (`days_active < 7`) for the calibrated model. Prefer `top_workspace_fatigue_risk` once the model is live.
+
+## "What's the week ahead?" / "What should I worry about?" / "Where am I losing budget?"
+
+1. `forecast_workspace_outlook` (Phase 4) — one call. Returns the portfolio rollup: projected impressions + outcomes for the next 7 days (with 80% prediction-interval bands from split-conformal calibration), counts of `n_emerging_top_performers` (climbing ads) + `n_at_risk_top_performers` (top-tier ads in high/critical fatigue), per-tier fatigue histograms, and `projected_budget_at_risk` (total spend across at-risk ads). The agent's first lookup for portfolio-level questions.
+2. If `projected_budget_at_risk > 0` and `n_at_risk_top_performers > 0`: drill in with `top_workspace_fatigue_risk` to see WHICH ads carry that risk.
+3. If `n_emerging_top_performers > 0`: cross-reference with `top_workspace_performers` to see the climbers — these are the candidates to scale.
+
+Caveats:
+- Empty-workspace return reads "No ads scored yet" or "all under cold-start gate" — don't say "looks healthy" in those cases.
+- The PI bands are calibrated 80% coverage, not Gaussian σ. Describe them as "the model is 80% confident the true value lies between X and Y", not "1-sigma".
+- The Phase 4 model is OFF by default; if `oldest_forecast_at` is null the cron's prediction pass hasn't run for this workspace yet.
 
 ## "What's happening this week?"
 
@@ -34,13 +47,19 @@ Never call `explain_customer_journey` without a `customer_profile_id` you got fr
 ## "Are we fatigued on this campaign?"
 
 1. `explain_campaign` for the named campaign
-2. `creative_fatigue_check` to get fatigue scores for ads in that campaign
+2. `top_workspace_fatigue_risk` (Phase 4) to get model-calibrated 30-day pause hazards for ads in that campaign (or `creative_fatigue_check` for the legacy heuristic when the Phase-4 model isn't available)
 3. Look at the daily trend in `explain_campaign` to confirm declining ROAS over time
+
+## "Are my top performers safe?" / "Will my best ads keep performing?"
+
+1. `forecast_workspace_outlook` (Phase 4) — the `n_at_risk_top_performers` count is the headline answer
+2. If non-zero, `top_workspace_fatigue_risk` to identify which top-tier ads are at risk
+3. Compare to `top_workspace_performers` to confirm which are the current top performers
 
 ## "What should I budget more on?"
 
 1. `top_campaigns` ordered by ROAS
-2. Cross-reference with `creative_fatigue_check` — don't recommend pouring budget into a fatigued campaign
+2. Cross-reference with `top_workspace_fatigue_risk` (Phase 4) — don't recommend pouring budget into an ad predicted to pause soon. The legacy `creative_fatigue_check` is the fallback when the calibrated model isn't available.
 3. Mention the `data_as_of` so the user knows whether the data is fresh
 
 ## "Did the WhatsApp ads work?"

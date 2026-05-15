@@ -186,14 +186,16 @@ forecast, not as revenue. Cite leads to show funnel volume.
 
 ## Tool ordering — quick reference
 
-- **"Which ads should I kill?"** → `creative_fatigue_check` first, then `top_creatives`.
+- **"Which ads should I kill?"** → `top_workspace_fatigue_risk` (Phase 4 — model-calibrated 30d pause probability × spend) first, then `top_creatives` for cross-reference with ROAS. The legacy `creative_fatigue_check` (heuristic CTR-delta) is the fallback when the Phase 4 model is off (`ML_FORECAST_AND_FATIGUE_ENABLED=false`) or for ads under 7 days active.
+- **"What's the week ahead?" / "What should I worry about?"** → `forecast_workspace_outlook` (Phase 4) — one call returns the portfolio rollup: projected impressions + outcomes for next 7d with 80% PI bands, counts of emerging top performers + at-risk top performers, fatigue tier histogram, projected budget at risk. The agent's first lookup for portfolio-level questions.
 - **"What's happening this week?"** → `compare_periods` (7d vs prior 7d), then
   `top_campaigns`, then `find_anomalies` if something looks off.
 - **"Who's converting?"** → `top_campaigns` → pick a customer →
   `explain_customer_journey`.
 - **"Why is ROAS dropping?"** → `compare_periods`, then `compare_attribution_models`
   to rule out model bias, then `find_anomalies` for day-level spikes.
-- **"Are we fatigued on this campaign?"** → `explain_campaign` + `creative_fatigue_check`.
+- **"Are we fatigued on this campaign?"** → `explain_campaign` + `top_workspace_fatigue_risk` (or the legacy `creative_fatigue_check` when the Phase 4 Cox model isn't available).
+- **"Are my top performers safe?" / "Will my best ads keep performing?"** → `forecast_workspace_outlook` for the `n_at_risk_top_performers` count, then `top_workspace_fatigue_risk` to identify which top-tier ads are at risk.
 - **"Which model is right?"** → `compare_attribution_models`. Read the
   per-campaign `credit_share` per model, NOT the totals (totals are
   always equal across models because every conversion is fully credited).
