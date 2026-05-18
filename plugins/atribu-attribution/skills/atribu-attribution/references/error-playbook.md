@@ -103,6 +103,42 @@ A `confirm` with this `idempotency_key` was already processed.
 2. Tell the user to check the audit log in the dashboard
 3. Investigate the underlying failures before retrying
 
+## Recommendation apply (Phase 5)
+
+### `circuit_breaker` (from `apply_recommendation`)
+Same 3-failures-in-30-minutes rule as `send_meta_conversions`, scoped per
+workspace. Auto-resets when the window passes (no manual reset RPC).
+
+**What to do:** Tell the user the breaker is open and the window expires in
+N minutes. Surface `recent_failures[]` so they can see what failed. Don't
+retry inside the window.
+
+### `meta_state_inconsistent=true` (on verification)
+The T+5min verification cron re-read Meta and found the state didn't match
+expected. Most common cause: someone edited the ad/adset in Meta Ads
+Manager between Atribu's apply and the verification check.
+
+**What to do:** Surface to the user — don't auto-rollback. The application
+row stays `verified_at=NULL` until they decide. They can either:
+- Accept the manual change (mark the rec dismissed)
+- Re-apply through Atribu (uses a fresh idempotency key)
+
+### `403 insufficient_scope` (on REST apply)
+The API key being used doesn't have `campaigns:apply`. This is a separate
+scope from `campaigns:read` / `campaigns:write` and only granted to keys
+where the workspace admin has enabled write-back.
+
+**What to do:** Tell the user to mint a new key in Developer > API Keys with
+the `campaigns:apply` scope checked. Existing keys are NOT auto-upgraded.
+
+### `pgrst 42501 permission denied` (direct PostgREST call)
+The `send_recommendation_apply_job` RPC is `service_role`-only. PostgREST
+clients (authenticated or anon) cannot call it directly.
+
+**What to do:** Use the MCP `apply_recommendation` tool OR the public REST
+route `POST /api/v1/recommendations/{id}/apply` — both go through the
+server-side trust boundary that holds the service-role key.
+
 ## Input
 
 ### `invalid_input`

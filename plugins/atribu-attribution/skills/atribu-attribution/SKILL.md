@@ -339,6 +339,44 @@ but doesn't write) over `mode='confirm'`.
   dimensions in one call (up to 6) over multiple separate calls — same
   cost, one round trip.
 
+## Recommendations & write-back (Phase 5)
+
+Atribu generates ranked, actionable recommendations per profile across four
+kinds — backed by the same `creative_feature_store` scoring as Top
+Performers, with a per-workspace LLM arbiter (default $2/month cap) ranking
+the candidates:
+
+- `scale_winner` — increase budget on consistently-performing ads
+- `pause_underperformer` — pause ads with poor signal under maturity gate
+- `budget_reallocate_winners` — shift budget from laggard → leader within an adset
+- `creative_refresh_pre_fatigue` — external handoff to Ads Lab (no Meta write)
+
+### Tools
+
+- `list_workspace_recommendations(workspace_id?, profile_ids?, statuses?, kinds?, score_window?, limit?)` — read.
+  - Defaults: `score_window='28d'`, `statuses=['open']`. Pass `['applied']` to see what was applied + the calibration follow-up.
+- `diagnose_recommendation(recommendation_id)` — full audit trail (ranker features, arbiter rationale, apply history, calibration batch row when present).
+- `apply_recommendation(recommendation_id, mode='preview'|'dry_run'|'confirm', idempotency_key?)` — write.
+  - Requires `mcp:write` scope + workspace setting `mcp_writeback_enabled=true` + admin/owner role.
+  - `mode='preview'` returns the planned Meta call(s); no audit row, no side effects.
+  - `mode='dry_run'` writes a `mcp_writeback_audits` row with `result='dry_run'` (records intent without enqueuing).
+  - `mode='confirm'` enqueues to `pgmq.q_recommendation_applies`; worker picks up within seconds.
+
+### Apply-flow guarantees
+
+- **Audit-before-action**: every `confirm` records an `mcp_writeback_audits` row BEFORE the Meta call.
+- **Idempotency**: replays of the same `idempotency_key` for the same workspace return the existing `application_id` — no double Meta write, no duplicate row. Use a stable key per logical attempt.
+- **Circuit breaker**: 3 apply failures within 30 min for a workspace blocks further applies (auto-reset after the window). If `apply_recommendation` returns `{ refused: 'circuit_breaker' }`, wait the window out.
+- **T+5min verification**: post-apply, a `recommendation-verification-resync` cron re-reads Meta state and marks the application `verified_at` (or sets `meta_state_inconsistent=true` if Meta didn't reflect the change as expected).
+- **Realized-vs-expected** (R-11 calibration): once an applied rec is ≥7 days old, the weekly `model-calibration-pass` cron writes `recommendation_calibration_batches` (`predicted_impact_dollars` vs `realized_impact_dollars`, `calibration_error`). `diagnose_recommendation` surfaces this. **Realized impact is observational (attributed in 7d post-apply window), NOT causal incremental lift** — that requires an active Phase 3 experiment.
+
+### Common failure modes
+
+- `circuit_breaker` → see above. Wait the 30min window.
+- `meta_state_inconsistent=true` on verification → Meta UI may have been edited manually between apply + verification. Surface to user; don't auto-rollback.
+- `403 insufficient_scope` on REST apply → API key needs `campaigns:apply` scope (separate from `campaigns:read` / `campaigns:write`). Mint via Developer > API Keys.
+- `pgrst 42501 permission denied` on direct PostgREST → the apply RPC is `service_role`-only; use the MCP `apply_recommendation` tool or the REST `POST /api/v1/recommendations/{id}/apply` route.
+
 ## Reference material
 
 - [`references/tool-ordering.md`](references/tool-ordering.md) — detailed
