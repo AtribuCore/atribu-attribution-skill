@@ -296,21 +296,41 @@ Codes you'll see most: `auth_required`, `token_expired`, `workspace_required`,
 
 ## Write-back protocol (send_meta_conversions)
 
-**This tool ships events back to Meta. Treat every confirm as irreversible.**
+**This tool queues events for Meta — it does not send them itself.**
+`confirm` enqueues rows in the export ledger (`conversion_exports`) plus a
+pipeline-worker job; the actual Graph API call happens asynchronously, under
+the booking cluster's canonical event_id, which is what lets Meta's 48h
+dedup collapse it against the Pixel and any other ingestion path (browser
+tracker, CRM webhook, bulk sync). Treat every confirm as irreversible even
+though nothing has reached Meta when the call returns — once queued, the run
+can't be recalled.
 
 Mandatory flow:
-1. Call with `mode='preview'` first. Show the user the event_count and
-   sample payload.
+1. Call with `mode='preview'` first. Show the user `counts.scoped` /
+   `counts.would_enqueue` (plus `already_delivered` / `already_queued` if
+   nonzero) and the destinations it would ship to. There is no sample event
+   payload — preview returns counts and destination state, not events.
 2. Ask the user to explicitly confirm in chat ("yes, send to Meta").
 3. Generate an idempotency key (UUID v4). Keep it in the conversation —
    if the user asks to retry, use the same key.
-4. Call with `mode='confirm'` + the idempotency_key.
-5. Report the returned `audit_id` so the user can reference it.
-6. On `idempotency_conflict`, surface the prior result. **Do not retry with
-   a new key** — that would duplicate submissions.
+4. Call with `mode='confirm'` + the idempotency_key. The response is
+   `result='queued'`, never `'sent'` — nothing has reached Meta yet.
+5. Report the returned `audit_id` AND `batch_id` so the user can reference
+   both. Point them at the `observe` block in the response — `GET
+   /api/v1/exports/{batch_id}` for this run, `GET /api/v1/exports/ledger`
+   for delivery outcomes — as how to confirm the events actually landed at
+   Meta.
+6. On `idempotency_conflict`, surface the prior result (it already carries
+   the original `batch_id`). **Do not retry with a new key** — that would
+   duplicate submissions.
 
-If in doubt, prefer `mode='dry_run'` (validates with Meta's test_event_code
-but doesn't write) over `mode='confirm'`.
+`mode='dry_run'` is the same plan as `preview`, additionally recorded in the
+write-back audit log as intent — it does not queue anything and no longer
+round-trips Meta's test-event endpoint (a tool that can't send synchronously
+can't test-send). Use it to leave an audit trail without committing to a
+run; it doesn't validate anything against Meta. `pixel_id`/`test_event_code`
+are accepted for compatibility but don't route — routing comes from the
+profile's configured export destination.
 
 ## Narration style
 

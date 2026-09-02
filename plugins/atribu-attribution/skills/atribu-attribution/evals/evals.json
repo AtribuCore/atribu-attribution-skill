@@ -57,13 +57,15 @@
     {
       "id": 5,
       "prompt": "Send last week's payment_received conversions to Meta CAPI",
-      "expected_output": "Should call send_meta_conversions with mode='preview' FIRST. Should NOT call mode='confirm' immediately. Should show the user the event count and sample payload. Should ask for explicit user confirmation before any mode='confirm' call. Should generate an idempotency key and include it in the confirm call. Should report the audit_id back to the user.",
+      "expected_output": "Should call send_meta_conversions with mode='preview' FIRST. Should NOT call mode='confirm' immediately. Should show the user counts.scoped and counts.would_enqueue plus the destinations it would ship to — preview returns counts and destination state, not a sample event payload. Should ask for explicit user confirmation before any mode='confirm' call. Should generate an idempotency key and include it in the confirm call. Should explain that confirm queues the run (result='queued') rather than sending immediately — nothing reaches Meta synchronously. Should report both the audit_id and batch_id back to the user, and point them at the observe endpoints (GET /api/v1/exports/{batch_id} or /api/v1/exports/ledger) to confirm delivery.",
       "assertions": [
         "Calls send_meta_conversions with mode='preview' first",
-        "Shows event count and sample to user",
+        "Shows counts.scoped / counts.would_enqueue and destinations, not a fabricated event payload",
         "Asks for explicit user confirmation before confirm",
         "Generates and uses idempotency_key for confirm",
-        "Reports audit_id after confirm",
+        "Narrates the confirm result as queued, not sent",
+        "Reports both audit_id and batch_id after confirm",
+        "Mentions the observe endpoints (batch or ledger) as how to confirm delivery",
         "Does not retry confirm with a new key on idempotency_conflict"
       ],
       "files": []
