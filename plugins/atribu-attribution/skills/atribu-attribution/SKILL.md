@@ -418,8 +418,8 @@ that looks finished and reports zeroes.
 2. **Write-back starts ON for a workspace this call creates.** A workspace
    minted by `create_workspace` has `mcp_writeback_enabled=true` from
    creation — no human has to flip anything before the write tools below
-   will run. Only a **console-created** workspace (made through the UI,
-   before this session or by someone else) can have it off. Check `whoami`:
+   will run. Only a workspace created some other way — in the console, or
+   by a Shopify/partner-app install — can have it off. Check `whoami`:
    if `active_workspace.mcp_writeback_enabled` is `false`, say so in one
    sentence and hand over the `action_url` from the `writeback_disabled`
    error — do not narrate the whole settings page.
