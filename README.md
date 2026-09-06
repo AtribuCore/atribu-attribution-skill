@@ -8,6 +8,7 @@ Once installed, the skill teaches your AI client (Claude Code, Cursor, etc.) how
 - Mask **PII** by default; unmask only when scope + workspace setting + per-call flag all allow it.
 - Pick the right tool for the question (e.g. `creative_fatigue_check` for "which ads to kill", `compare_periods` for trends, `find_anomalies` for daily spikes).
 - Follow the **preview → confirm** flow for write-back to Meta CAPI, with idempotency keys.
+- Walk a brand-new workspace through **onboarding** end to end — provisioning, tracker install, connect, conversion rules, CAPI — in the order each step actually needs.
 
 ## Install
 

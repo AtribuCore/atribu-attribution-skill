@@ -200,6 +200,71 @@
         "Does not present engagement events as conversions"
       ],
       "files": []
+    },
+    {
+      "id": 16,
+      "prompt": "Set up Atribu for my Shopify store — I don't have an account yet.",
+      "expected_output": "Should call whoami FIRST to check for existing workspaces/profiles before writing anything. Should call create_workspace only if whoami shows none (preview, then confirm after the user agrees to the name). Should then call create_profile for the Shopify store, then issue_tracking_key followed by get_tracker_installer for the shopify_pixel surface. Should NOT call create_workspace if whoami already shows one — reuse it and go straight to create_profile. Should NOT skip whoami or guess the tracker surface without asking (unless 'Shopify store' unambiguously implies shopify_pixel).",
+      "assertions": [
+        "Calls whoami before any write tool",
+        "Calls create_workspace only when whoami shows no workspace",
+        "Calls create_profile after create_workspace, or immediately if a workspace already existed",
+        "Calls issue_tracking_key then get_tracker_installer, in that order",
+        "Does not call create_workspace when whoami already shows one"
+      ],
+      "files": []
+    },
+    {
+      "id": 17,
+      "prompt": "I told you to create a workspace called 'Acme Ads' a minute ago but my connection dropped before I saw the result. Try again.",
+      "expected_output": "Should NOT invent a renamed workspace to 'play it safe' — a different name always creates a second, distinct workspace. Should retry create_workspace with the IDENTICAL name 'Acme Ads'. The tool is idempotent for a same-name replay from the same caller within a short window: it returns created:false and the ORIGINAL workspace rather than minting a second one. Should tell the user which actually happened (a new workspace vs. the existing one) rather than assuming.",
+      "assertions": [
+        "Retries create_workspace with the identical name, not a new one",
+        "Does not fabricate a different workspace name to avoid a suspected duplicate",
+        "Explains that a same-name replay returns the original workspace (created: false), not a second one",
+        "States that a different name always creates a separate workspace",
+        "Reports back which outcome actually occurred rather than assuming success or failure"
+      ],
+      "files": []
+    },
+    {
+      "id": 18,
+      "prompt": "I tried to configure the Meta CAPI destination myself and got an insufficient_role error. What do I do?",
+      "expected_output": "Should read the error CODE, not the message text. insufficient_role means a human with an owner/admin role on the workspace has to act — re-consenting or minting a new token cannot fix it. Should surface the action_url from the error and say, in one sentence, that a workspace owner/admin needs to complete it. Should NOT suggest generating a new token with different scopes, and should NOT confuse this with writeback_disabled or insufficient_scope.",
+      "assertions": [
+        "Reads the error code insufficient_role, not just the prose message",
+        "States that a human with owner/admin role must act",
+        "Surfaces the action_url from the error envelope",
+        "Does not suggest re-authenticating with a new scope as the fix",
+        "Does not confuse insufficient_role with insufficient_scope or writeback_disabled"
+      ],
+      "files": []
+    },
+    {
+      "id": 19,
+      "prompt": "Send this profile's payment_received conversions to Meta.",
+      "expected_output": "If send_meta_conversions (or any write tool) returns writeback_disabled, should identify it as ONE workspace setting behind ONE URL — not a scope, role, or connector problem. Should say, in one sentence, that a workspace admin needs to flip MCP write-back on in Settings -> Privacy & MCP, and hand over the action_url from the error verbatim. Should NOT narrate the whole settings page, retry the write, or suggest re-minting the token.",
+      "assertions": [
+        "Reads the error code writeback_disabled, not the prose message",
+        "States it as a single workspace setting a human must flip",
+        "Surfaces the action_url verbatim",
+        "Does not confuse writeback_disabled with insufficient_scope or insufficient_role",
+        "Does not retry the write before the setting changes"
+      ],
+      "files": []
+    },
+    {
+      "id": 20,
+      "prompt": "Why can't I configure_meta_capi for this profile yet?",
+      "expected_output": "If the response carries connector_required, should recognize the fix is start_connect({ provider: 'meta' }), not a settings toggle or a role escalation. Should call start_connect, hand the user the returned url, then poll get_handoff. Should NOT tell the user to look in Settings -> Privacy & MCP (that's writeback_disabled) or claim they need a different role (that's insufficient_role).",
+      "assertions": [
+        "Reads the error code connector_required, not the prose",
+        "Calls start_connect with the correct provider as the fix",
+        "Does not confuse connector_required with writeback_disabled or insufficient_role",
+        "Hands the user the start_connect url and polls get_handoff",
+        "Does not tell the user to change a workspace setting"
+      ],
+      "files": []
     }
   ]
 }

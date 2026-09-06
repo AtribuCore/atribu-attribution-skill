@@ -397,6 +397,85 @@ the candidates:
 - `403 insufficient_scope` on REST apply → API key needs `campaigns:apply` scope (separate from `campaigns:read` / `campaigns:write`). Mint via Developer > API Keys.
 - `pgrst 42501 permission denied` on direct PostgREST → the apply RPC is `service_role`-only; use the MCP `apply_recommendation` tool or the REST `POST /api/v1/recommendations/{id}/apply` route.
 
+## Onboarding
+
+Everything above assumes a workspace that is already configured. This section
+is the other half: taking an agent from an empty workspace to a live CAPI
+destination, over MCP, end to end.
+
+**Call `whoami` first, every session.** It costs 0 units and returns a
+`readiness` summary — how many golden-path steps are done, which is next,
+and every step that is not done, with why and what unblocks it. An empty
+dashboard is almost always a missing connection, not a missing result, and
+this is where that shows.
+
+### The order, and why it is the order
+
+Each step needs the one before it. Skipping is what produces a workspace
+that looks finished and reports zeroes.
+
+1. **`create_workspace`** — only when `whoami` shows none. You become the owner.
+2. **Write-back starts ON for a workspace this call creates.** A workspace
+   minted by `create_workspace` has `mcp_writeback_enabled=true` from
+   creation — no human has to flip anything before the write tools below
+   will run. Only a workspace created some other way — in the console, or
+   by a Shopify/partner-app install — can have it off. Check `whoami`:
+   if `active_workspace.mcp_writeback_enabled` is `false`, say so in one
+   sentence and hand over the `action_url` from the `writeback_disabled`
+   error — do not narrate the whole settings page.
+3. **`create_profile`** — one advertiser/brand/client. Everything after this
+   is scoped to it. (Or `create_demo_profile`, when the user wants to see the
+   product working before connecting anything real.)
+4. **`issue_tracking_key`** → **`get_tracker_installer`** — mint the key,
+   then hand over the installer **verbatim**. Ask which surface first
+   (`snippet` / `gtm` / `shopify_pixel`); guessing produces an install they
+   cannot use.
+5. **`start_connect({ provider })`** — give the user the `url` exactly as
+   returned, then poll `get_handoff({ id })`. Do not open it, do not shorten
+   it, do not summarise it.
+6. **`list_outcome_events`** → **`suggest_conversion_definitions`** →
+   **`create_conversion_definition`** — read what the profile actually
+   emits, propose from that, create what the user confirms. Never invent an
+   event name.
+7. **`set_attribution_windows`** — only if the customer's sales cycle needs
+   it. It rewrites already-reported numbers, so say so before confirming.
+7b. **`sign_dpa`** — Conversion Sync exports nothing until the DPA is
+   accepted. You cannot sign it; hand over the URL. `already_signed: true`
+   is a success — say so and move on rather than offering a link.
+8. **`configure_meta_capi`** → **`send_test_event`** — the dataset and its
+   rules, then one synthetic event the customer watches land in Events
+   Manager.
+
+### Rules the skill enforces
+
+- **Preview, show, confirm.** Every write tool takes `mode`. Run `preview`,
+  put its `will_call` and (where present) its dry-run counts in front of the
+  user in their own words, and only then `confirm`. Never confirm in the
+  same turn you previewed unless the user already said yes to that exact
+  thing.
+- **A same-name `create_workspace` replay from the same caller is safe
+  within a short window** — it answers `created: false` and returns the
+  ORIGINAL workspace, never a second one. A **different** name is always a
+  different workspace. If you did not read the outcome of a call (timeout,
+  dropped connection), retry with the identical name rather than guessing a
+  new one — do not silently rename to "try again", and do not assume success
+  or failure without telling the user which happened.
+- **Read the error CODE, not the prose.** `insufficient_scope` → the token
+  needs re-consent. `insufficient_role` → a human with an owner/admin role
+  has to act; re-consenting cannot fix it. `writeback_disabled` → one
+  setting, one URL (see step 2). `connector_required` → `start_connect`.
+  Each carries an `action_url`; give that link, do not describe the path.
+- **Only `cash` counts for ROAS.** When creating a conversion definition for
+  what the customer calls "sales" or "revenue", that is
+  `revenue_type: "cash"`. `pipeline` fills the funnel and contributes
+  nothing to any ratio — a dashboard of zeroes with no error anywhere.
+- **A hand-off is the user's to complete.** Poll `get_handoff` every few
+  seconds; do not mint a second one while the first is pending; an
+  `expired` status means mint a fresh one, a 404 means the id is wrong.
+- **A partial `configure_meta_capi` is not a success.** It returns
+  `complete: false` and `failed_rules`. Say which conversions will not
+  reach Meta rather than reporting the destination as done.
+
 ## Reference material
 
 - [`references/tool-ordering.md`](references/tool-ordering.md) — detailed
