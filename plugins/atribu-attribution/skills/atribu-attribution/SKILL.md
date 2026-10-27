@@ -199,10 +199,18 @@ forecast, not as revenue. Cite leads to show funnel volume.
 - **"Which model is right?"** → `compare_attribution_models`. Read the
   per-campaign `credit_share` per model, NOT the totals (totals are
   always equal across models because every conversion is fully credited).
-- **"Where do we lose people?" / "What's our funnel conversion rate?"** →
-  `get_funnel`. Walks `lead_created` → `appointment_booked` → `showed` →
-  `qualified` → `closed_won` with stage-to-stage drop-off. For deal-only
-  views pass `scope='pipeline_only'`.
+- **"Where do we lose people?" / "Which ad / Angle goes deepest?" / "Where
+  do people from this ad drop off?"** → `get_funnel`. It walks the
+  profile's own chain of Funnel Steps on the site (the chain saved under
+  /ads «Editar pasos», else the default chain; `chain_source` says which)
+  and counts PEOPLE. Without `breakdown` it answers profile-wide (`total`);
+  pass `breakdown` = `campaign` | `ad_set` | `ad` | `angle` for one group
+  per entity, each with `platform_id` and `name`. Per step: `reached`,
+  `step_rate` / `entry_rate` (0–1 fractions), `drop_off`, `drop_off_rate`,
+  `cost_per_reached`; per group, `biggest_drop_off`.
+- **"How many leads / booked / showed / closed-won?" (CRM lead stages)** →
+  `call_api_operation` on `GET /api/v1/goals/outcome-counts`. `get_funnel`
+  no longer walks the fixed `lead_created` → `closed_won` chain.
 - **"Which channel/country/page converts best?"** → `get_tracking_breakdown`
   with the relevant `dimensions`. The `revenue` field is cash only — same
   as ROAS. Combine with `get_performance_summary` for context.
@@ -241,17 +249,23 @@ forecast, not as revenue. Cite leads to show funnel volume.
 `find_anomalies` is for "what's unusual," NOT "what's trending." Use
 `compare_periods` for trends.
 
-`get_funnel` counts events, not unique customers — one customer can appear
-at multiple stages. Don't compute customer-level rates from these counts.
+`get_funnel` credits each person's whole Funnel to their **Entry Ad** — their
+last ad click before their first Funnel Step in the window — NOT to the
+attribution model. Its last step will not match `top_campaigns` /
+`get_performance_summary` for the same ad: those credit sales under the
+chosen model, the Funnel credits the person to the ad that brought them.
+Don't try to reconcile the two; say which one you are quoting.
 
-`get_funnel` only counts events whose `event_key` is also defined as a
-conversion for the profile (i.e. the key appears in `conversion_definitions`).
-If a stage like `disqualified` shows 0 but the team clearly tracks it
-(e.g. labels like "Descualificado", "Lead Abandonado" exist under
-Outcome Definitions), the conversion definition is missing. Tell the user
-to map the event_key in **Settings > Outcomes > Conversion Definitions**.
-Don't claim "you have 0 disqualified leads" without checking — that's a
-common configuration gap, not a real zero.
+Read the baselines apart: «Sin anuncio» (`no_entry_ad`, people with no Entry
+Ad) and «Anuncio sin identificar» (`unidentified_entry_ad`, an Entry Ad that
+matches no entity, or at `angle` no Angle) are never part of an entity's
+numbers. `total` includes them, so its `cost_per_reached` is blended.
+
+A step listed in `measurement_incomplete_steps` is under-counted because the
+site's tracking of it looks broken (e.g. a booking calendar that stopped
+reporting the chosen slot). Say so; never call its Drop-off real. People
+who entered on or after `maturing_from` may still go deeper. With fewer than
+~10 people at a step, call a rate noise rather than a finding.
 
 `find_anomalies` is for "what's unusual," NOT "what's trending." Use
 `compare_periods` for trends.
