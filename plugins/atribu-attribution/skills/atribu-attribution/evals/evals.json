@@ -110,14 +110,15 @@
     {
       "id": 9,
       "prompt": "Where are we losing people in the funnel this month?",
-      "expected_output": "Should call get_funnel for the current month with default scope='all'. Should narrate the lead_created -> appointment_booked -> showed -> qualified -> closed_won progression with stage-to-stage drop-off counts and conversion rates. Should identify the BIGGEST drop step (largest absolute drop_off_from_previous_count or lowest conversion_rate_from_previous_pct). Should NOT call find_anomalies (that's for daily spikes). Should mention that counts are events, not unique customers. Should cite data_as_of.",
+      "expected_output": "Should call get_funnel for the current month with no breakdown (profile-wide), then, to say where people drop and which ads bring the ones who go deepest, call it again with breakdown='ad' (or 'campaign' / 'angle'). Should narrate the profile's own chain of Funnel Steps from the response (steps / chain_source), not the old lead_created -> closed_won chain, with reached, step_rate and drop_off per step. Should identify the BIGGEST drop step (biggest_drop_off). Should name ads by their `name`. Should say each person is credited to their Entry Ad, not the attribution model, so the last step need not match top_campaigns. Should treat «Sin anuncio» / «Anuncio sin identificar» as baselines and flag any measurement_incomplete step. Should NOT call find_anomalies. Should cite data_as_of.",
       "assertions": [
-        "Calls get_funnel with scope='all' (or omitted, default)",
-        "Walks the canonical lead -> closed_won chain",
-        "Identifies the biggest drop-off stage explicitly",
-        "Uses stage-to-stage conversion rates from the response",
+        "Calls get_funnel without a breakdown, then with breakdown='ad', 'campaign' or 'angle'",
+        "Walks the profile's chain of Funnel Steps from the response, not the fixed lead_created -> closed_won chain",
+        "Identifies the biggest drop-off step explicitly",
+        "Uses step_rate / drop_off from the response and names ads by their `name`",
+        "Explains Entry Ad credit vs the attribution model",
+        "Keeps «Sin anuncio» / «Anuncio sin identificar» apart and flags measurement_incomplete steps if any",
         "Does not call find_anomalies",
-        "Mentions counts are events not unique customers",
         "Cites data_as_of"
       ],
       "files": []
